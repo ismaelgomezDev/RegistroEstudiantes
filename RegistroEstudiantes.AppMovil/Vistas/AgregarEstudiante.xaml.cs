@@ -18,7 +18,6 @@ public partial class AgregarEstudiante : ContentPage
     {
         var cursos = client.Child("Cursos").OnceAsync<Curso>();
         Cursos = cursos.Result.Select(x => x.Object).ToList();
-
     }
 
     private async void guardarButton_Clicked(object sender, EventArgs e)
@@ -39,16 +38,14 @@ public partial class AgregarEstudiante : ContentPage
 
         try
         {
-            await client.Child("Estudiantes").PostAsync(estudiante); // Guardar el estudiante en la base de datos
-
+            await client.Child("Estudiantes").PostAsync(estudiante);
             await DisplayAlert("Exito", $"El Estudiante {estudiante.PrimerNombre} {estudiante.PrimerApellido} fue agregado con éxito",
-            "OK"); // Mostrar mensaje de alerta - Titulo, Mensaje, Boton
-
-            await Navigation.PopAsync(); // Regresar a la pagina anterior
+            "OK");
+            await Navigation.PopAsync();
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Error!", $"Ocurrio un error al intentar guardar los datos del estudiante: {ex.Message}", "OK");
+            await DisplayAlert("Error!", $"No se guardaron los datos del estudiante. Error: {ex.Message}", "OK");
         }
 
     }

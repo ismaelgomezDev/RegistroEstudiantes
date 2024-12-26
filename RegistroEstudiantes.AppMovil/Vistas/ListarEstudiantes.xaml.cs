@@ -1,4 +1,5 @@
 using Firebase.Database;
+using Firebase.Database.Query;
 using LiteDB;
 using RegistroEstudiantes.Modelos.Modelos;
 using System.Collections.ObjectModel;
@@ -16,15 +17,28 @@ public partial class ListarEstudiantes : ContentPage
         CargarLista();
     }
 
-    private void CargarLista()
+    private async void CargarLista()
     {
-        client.Child("Estudiantes").AsObservable<Estudiante>().Subscribe((estudiante) =>
+        Lista.Clear();
+        var estudiantes = await client.Child("Estudiantes").OnceAsync<Estudiante>();
+
+        var estudiantesActivos = estudiantes.Where(e => e.Object.Estado == true).ToList();
+
+        foreach (var estudiante in estudiantesActivos)
         {
-            if (estudiante != null)
+            Lista.Add(new Estudiante
             {
-                Lista.Add(estudiante.Object);
-            }
-        });
+                Id = estudiante.Key,
+                PrimerNombre = estudiante.Object.PrimerNombre,
+                SegundoNombre = estudiante.Object.SegundoNombre,
+                PrimerApellido = estudiante.Object.PrimerApellido,
+                SegundoApellido = estudiante.Object.SegundoApellido,
+                CorreoElectronico = estudiante.Object.CorreoElectronico,
+                Edad = estudiante.Object.Edad,
+                Estado = estudiante.Object.Estado,
+                Curso = estudiante.Object.Curso
+            });
+        }
     }
 
     private void filtroSearchBar_TextChanged(object sender, TextChangedEventArgs e)
@@ -33,16 +47,63 @@ public partial class ListarEstudiantes : ContentPage
 
         if (filtro.Length > 0)
         {
-            ListaCollection.ItemsSource = Lista.Where(x => x.NombreCompleto.ToLower().Contains(filtro));
+            listaCollection.ItemsSource = Lista.Where(x => x.NombreCompleto.ToLower().Contains(filtro));
         }
         else
         {
-            ListaCollection.ItemsSource = Lista;
+            listaCollection.ItemsSource = Lista;
         }
     }
 
     private async void NuevoEstudianteBoton_Clicked(object sender, EventArgs e)
     {
         await Navigation.PushAsync(new AgregarEstudiante());
+    }
+
+    private async void editarButton_Clicked(object sender, EventArgs e)
+    {
+        var boton = sender as ImageButton;
+        var estudiante = boton?.CommandParameter as Estudiante;
+
+        if (estudiante != null && !string.IsNullOrEmpty(estudiante.Id))
+        {
+            await Navigation.PushAsync(new EditarEstudiante(estudiante.Id));
+        }
+        else
+        {
+            await DisplayAlert("Error", "No se pudo obtener la información del estudiante", "OK");
+        }
+    }
+
+    private async void deshabilitarButton_Clicked(object sender, EventArgs e)
+    {
+        var boton = sender as ImageButton;
+        var estudiante = boton?.CommandParameter as Estudiante;
+
+        if (estudiante == null)
+        {
+            await DisplayAlert("Error", "No se pudo obtener la información del estudiante", "OK");
+            return;
+        }
+
+        bool confirmacion = await DisplayAlert
+            ("Confirmación", $"Está seguro que desea deshabilitar al estudiante {estudiante.NombreCompleto}", "Sí", "No");
+
+        if (confirmacion)
+        {
+            try
+            {
+                estudiante.Estado = false;
+                await client.Child("Estudiantes").Child(estudiante.Id).PutAsync(estudiante);
+                await DisplayAlert("Exito", $"Se ha deshabilitado correctamente al estudiante {estudiante.NombreCompleto}", "OK");
+                CargarLista();
+
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+        }
     }
 }
